@@ -11,8 +11,10 @@ require 'octokit/client/commits'
 require 'octokit/client/commit_comments'
 require 'octokit/client/contents'
 require 'octokit/client/downloads'
+require 'octokit/client/deployments'
 require 'octokit/client/emojis'
 require 'octokit/client/events'
+require 'octokit/client/feeds'
 require 'octokit/client/gists'
 require 'octokit/client/gitignore'
 require 'octokit/client/hooks'
@@ -25,6 +27,7 @@ require 'octokit/client/milestones'
 require 'octokit/client/notifications'
 require 'octokit/client/objects'
 require 'octokit/client/organizations'
+require 'octokit/client/pages'
 require 'octokit/client/pub_sub_hubbub'
 require 'octokit/client/pull_requests'
 require 'octokit/client/rate_limit'
@@ -42,7 +45,7 @@ module Octokit
 
   # Client for the GitHub API
   #
-  # @see http://developer.github.com
+  # @see https://developer.github.com
   class Client
 
     include Octokit::Authentication
@@ -51,9 +54,11 @@ module Octokit
     include Octokit::Client::Commits
     include Octokit::Client::CommitComments
     include Octokit::Client::Contents
+    include Octokit::Client::Deployments
     include Octokit::Client::Downloads
     include Octokit::Client::Emojis
     include Octokit::Client::Events
+    include Octokit::Client::Feeds
     include Octokit::Client::Gists
     include Octokit::Client::Gitignore
     include Octokit::Client::Hooks
@@ -66,6 +71,7 @@ module Octokit
     include Octokit::Client::Notifications
     include Octokit::Client::Objects
     include Octokit::Client::Organizations
+    include Octokit::Client::Pages
     include Octokit::Client::PubSubHubbub
     include Octokit::Client::PullRequests
     include Octokit::Client::RateLimit
@@ -80,7 +86,7 @@ module Octokit
     include Octokit::Client::Users
 
     # Header keys that can be passed in options hash to {#get},{#head}
-    CONVENIENCE_HEADERS = Set.new [:accept, :content_type]
+    CONVENIENCE_HEADERS = Set.new([:accept, :content_type])
 
     def initialize(options = {})
       # Use options passed in, but fall back to module defaults
@@ -178,8 +184,12 @@ module Octokit
     #
     # @param url [String] The path, relative to {#api_endpoint}
     # @param options [Hash] Query and header params for request
+    # @param block [Block] Block to perform the data concatination of the
+    #   multiple requests. The block is called with two parameters, the first
+    #   contains the contents of the requests so far and the second parameter
+    #   contains the latest response.
     # @return [Sawyer::Resource]
-    def paginate(url, options = {})
+    def paginate(url, options = {}, &block)
       opts = parse_query_and_convenience_headers(options.dup)
       if @auto_paginate || @per_page
         opts[:query][:per_page] ||=  @per_page || (@auto_paginate ? 100 : nil)
@@ -187,10 +197,14 @@ module Octokit
 
       data = request(:get, url, opts)
 
-      if @auto_paginate && data.is_a?(Array)
+      if @auto_paginate
         while @last_response.rels[:next] && rate_limit.remaining > 0
           @last_response = @last_response.rels[:next].get
-          data.concat(@last_response.data) if @last_response.data.is_a?(Array)
+          if block_given?
+            yield(data, @last_response)
+          else
+            data.concat(@last_response.data) if @last_response.data.is_a?(Array)
+          end
         end
 
       end
@@ -226,7 +240,7 @@ module Octokit
     #
     # @return [Sawyer::Response]
     def last_response
-      @last_response
+      @last_response if defined? @last_response
     end
 
     private
@@ -244,7 +258,7 @@ module Octokit
         options[:query].merge! application_authentication
       end
 
-      @last_response = response = agent.call(method, URI.encode(path.to_s), data, options)
+      @last_response = response = agent.call(method, URI::Parser.new.escape(path.to_s), data, options)
       response.data
     end
 
@@ -286,5 +300,14 @@ module Octokit
       opts
     end
 
+    # Wrapper around Kernel#warn to print warnings unless
+    # OCTOKIT_SILENT is set to true.
+    #
+    # @return [nil]
+    def octokit_warn(*message)
+      unless ENV['OCTOKIT_SILENT']
+        warn message
+      end
+    end
   end
 end

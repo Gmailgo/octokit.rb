@@ -1,4 +1,5 @@
 require 'octokit/response/raise_error'
+require 'octokit/response/feed_parser'
 require 'octokit/version'
 
 module Octokit
@@ -13,14 +14,18 @@ module Octokit
     USER_AGENT   = "Octokit Ruby Gem #{Octokit::VERSION}".freeze
 
     # Default media type
-    MEDIA_TYPE   = "application/vnd.github.beta+json"
+    MEDIA_TYPE   = "application/vnd.github.v3+json"
 
     # Default WEB endpoint
     WEB_ENDPOINT = "https://github.com".freeze
 
+    # In Faraday 0.9, Faraday::Builder was renamed to Faraday::RackBuilder
+    RACK_BUILDER_CLASS = defined?(Faraday::RackBuilder) ? Faraday::RackBuilder : Faraday::Builder
+
     # Default Faraday middleware stack
-    MIDDLEWARE = Faraday::Builder.new do |builder|
+    MIDDLEWARE = RACK_BUILDER_CLASS.new do |builder|
       builder.use Octokit::Response::RaiseError
+      builder.use Octokit::Response::FeedParser
       builder.adapter Faraday.default_adapter
     end
 

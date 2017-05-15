@@ -7,20 +7,22 @@ describe Octokit::Client::PubSubHubbub do
     @client = oauth_client
   end
 
-  describe ".subscribe", :vcr do
+  describe ".subscribe" do
     it "subscribes to pull events" do
-      subscribe_request_body = {
-        :"hub.callback" => 'github://Travis?token=travistoken',
-        :"hub.mode" => 'subscribe',
-        :"hub.topic" => 'https://github.com/api-playground/api-sandbox/events/push'
-      }
-
-      result = @client.subscribe("https://github.com/api-playground/api-sandbox/events/push", "github://Travis?token=travistoken")
-      assert_requested :post, github_url("/hub"), :body => subscribe_request_body, :times => 1,
-        :headers => {'Content-type' => 'application/x-www-form-urlencoded'}
-      expect(result).to be_true
+      request = stub_post(github_url("/hub")).
+        with(:body => {
+          :"hub.callback" => 'github://Travis?token=travistoken',
+          :"hub.mode" => 'subscribe',
+          :"hub.topic" => 'https://github.com/elskwid/github-services/events/push',
+          :"hub.secret" => '12345'
+        }).
+        to_return(:status => 204)
+      result = @client.subscribe("https://github.com/elskwid/github-services/events/push", "github://Travis?token=travistoken", "12345")
+      expect(result).to be true
+      assert_requested request
     end
-    it "raises an error when topic is not recognized" do
+
+    it "raises an error when topic is not recognized", :vcr do
       subscribe_request_body = {
         :"hub.callback" => 'github://Travis?token=travistoken',
         :"hub.mode" => 'subscribe',
@@ -39,28 +41,32 @@ describe Octokit::Client::PubSubHubbub do
       unsubscribe_request_body = {
         :"hub.callback" => 'github://Travis?token=travistoken',
         :"hub.mode" => 'unsubscribe',
-        :"hub.topic" => 'https://github.com/api-playground/api-sandbox/events/push'
+        :"hub.topic" => "https://github.com/#{@test_repo}/events/push"
       }
 
-      result = @client.unsubscribe("https://github.com/api-playground/api-sandbox/events/push", "github://Travis?token=travistoken")
+      result = @client.unsubscribe("https://github.com/#{@test_repo}/events/push", "github://Travis?token=travistoken")
       assert_requested :post, github_url("/hub"), :body => unsubscribe_request_body, :times => 1,
         :headers => {'Content-type' => 'application/x-www-form-urlencoded'}
-      expect(result).to be_true
+      expect(result).to be true
     end
   end # .unsubscribe
 
-  describe ".subscribe_service_hook", :vcr do
-    it "subscribes to pull events on specified topic" do
-      subscribe_request_body = {
-        :"hub.callback" => 'github://Travis?token=travistoken',
-        :"hub.mode" => 'subscribe',
-        :"hub.topic" => 'https://github.com/api-playground/api-sandbox/events/push'
-      }
-      expect(@client.subscribe_service_hook("api-playground/api-sandbox", "Travis", { :token => 'travistoken' })).to eq(true)
-      assert_requested :post, github_url("/hub"), :body => subscribe_request_body, :times => 1,
-        :headers => {'Content-type' => 'application/x-www-form-urlencoded'}
+  describe ".subscribe_service_hook" do
+    it "subscribes to pull event on specified topic" do
+      request = stub_post(github_url("/hub")).
+        with(:body => {
+          :"hub.callback" => 'github://Travis?token=travistoken',
+          :"hub.mode" => 'subscribe',
+          :"hub.topic" => 'https://github.com/elskwid/github-services/events/push',
+          :"hub.secret" => '12345'
+        }).
+        to_return(:status => 204)
+      result = @client.subscribe_service_hook("elskwid/github-services", "Travis", { :token => 'travistoken' }, "12345")
+      expect(result).to be true
+      assert_requested request
     end
-    it "encodes URL parameters" do
+
+    it "encodes URL parameters", :vcr  do
       irc_request_body = {
         :"hub.callback" => 'github://irc?server=chat.freenode.org&room=%23myproject',
         :"hub.mode" => 'subscribe',
@@ -83,9 +89,9 @@ describe Octokit::Client::PubSubHubbub do
       unsubscribe_request_body = {
         :"hub.callback" => 'github://Travis',
         :"hub.mode" => 'unsubscribe',
-        :"hub.topic" => 'https://github.com/api-playground/api-sandbox/events/push'
+        :"hub.topic" => "https://github.com/#{@test_repo}/events/push"
       }
-      expect(@client.unsubscribe_service_hook("api-playground/api-sandbox", "Travis")).to eq(true)
+      expect(@client.unsubscribe_service_hook(@test_repo, "Travis")).to eq(true)
       assert_requested :post, github_url("/hub"), :body => unsubscribe_request_body, :times => 1,
         :headers => {'Content-type' => 'application/x-www-form-urlencoded'}
     end

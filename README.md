@@ -54,7 +54,7 @@ or
 
 ```ruby
 # Provide authentication credentials
-client = Octokit::Client.new :login => 'defunkt', :password => 'c0d3b4ssssss!'
+client = Octokit::Client.new(:login => 'defunkt', :password => 'c0d3b4ssssss!')
 # Fetch the current user
 client.user
 ```
@@ -129,7 +129,7 @@ To use an access token with the Octokit client, just pass it in lieu of your
 username and password:
 
 ```ruby
-client = Octokit::Client.new :access_token => "<your 40 char token>"
+client = Octokit::Client.new(:access_token => "<your 40 char token>")
 
 user = client.user
 user.login
@@ -141,7 +141,7 @@ that you can use for subsequent calls.
 
 ### Two-Factor Authentication
 
-[Two-Factor Authentication](https://help.github.com/articles/about-two-factor-authentication) brings added security to the account by requiring more information to login. 
+[Two-Factor Authentication](https://help.github.com/articles/about-two-factor-authentication) brings added security to the account by requiring more information to login.
 
 Using two-factor authentication for API calls is as simple as adding the [required header](http://developer.github.com/v3/auth/#working-with-two-factor-authentication) as an option:
 
@@ -177,7 +177,7 @@ machine api.github.com
 You can now create a client with those credentials:
 
 ```ruby
-client = Octokit::Client.new :netrc => true
+client = Octokit::Client.new(:netrc => true)
 client.login
 # => "defunkt"
 ```
@@ -285,6 +285,10 @@ Octokit.api_endpoint
 # => "http://api.github.dev"
 ```
 
+Deprecation warnings and API endpoints in development preview warnings are
+printed to STDOUT by default, these can be disabled by setting the ENV
+`OCTOKIT_SILENT=true`.
+
 ## Hypermedia agent
 
 Starting in version 2.0, Octokit is [hypermedia][]-enabled. Under the hood,
@@ -378,7 +382,7 @@ Often, it helps to know what Octokit is doing under the hood. Faraday makes it
 easy to peek into the underlying HTTP traffic:
 
 ```ruby
-stack = Faraday::Builder.new do |builder|
+stack = Faraday::RackBuilder.new do |builder|
   builder.response :logger
   builder.use Octokit::Response::RaiseError
   builder.adapter Faraday.default_adapter
@@ -417,7 +421,7 @@ Add the gem to your Gemfile
 Next, construct your own Faraday middleware:
 
 ```ruby
-stack = Faraday::Builder.new do |builder|
+stack = Faraday::RackBuilder.new do |builder|
   builder.use Faraday::HttpCache
   builder.use Octokit::Response::RaiseError
   builder.adapter Faraday.default_adapter
@@ -482,6 +486,7 @@ implementations:
 * Ruby 1.9.2
 * Ruby 1.9.3
 * Ruby 2.0.0
+* Ruby 2.1.0
 
 If something doesn't work on one of these Ruby versions, it's a bug.
 
@@ -516,4 +521,24 @@ Constraint][pvc] with two digits of precision. For example:
 
 ## License
 
-{include:file:LICENSE.md}
+Copyright (c) 2009-2014 Wynn Netherland, Adam Stacoviak, Erik Michaels-Ober
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+

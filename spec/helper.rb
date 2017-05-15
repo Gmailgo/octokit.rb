@@ -1,11 +1,13 @@
-require 'simplecov'
-require 'coveralls'
+if RUBY_ENGINE == 'ruby'
+  require 'simplecov'
+  require 'coveralls'
 
-SimpleCov.formatter = SimpleCov::Formatter::MultiFormatter[
-  SimpleCov::Formatter::HTMLFormatter,
-  Coveralls::SimpleCov::Formatter
-]
-SimpleCov.start
+  SimpleCov.formatter = SimpleCov::Formatter::MultiFormatter[
+    SimpleCov::Formatter::HTMLFormatter,
+    Coveralls::SimpleCov::Formatter
+  ]
+  SimpleCov.start
+end
 
 require 'json'
 require 'octokit'
@@ -15,26 +17,39 @@ require 'webmock/rspec'
 WebMock.disable_net_connect!(:allow => 'coveralls.io')
 
 RSpec.configure do |config|
-  config.treat_symbols_as_metadata_keys_with_true_values = true
+  config.raise_errors_for_deprecations!
+  config.before(:all) do
+    @test_repo = "#{test_github_login}/#{test_github_repository}"
+    @test_org_repo = "#{test_github_org}/#{test_github_repository}"
+  end
 end
 
 require 'vcr'
 VCR.configure do |c|
   c.configure_rspec_metadata!
   c.filter_sensitive_data("<GITHUB_LOGIN>") do
-      ENV['OCTOKIT_TEST_GITHUB_LOGIN']
+    test_github_login
   end
   c.filter_sensitive_data("<GITHUB_PASSWORD>") do
-      ENV['OCTOKIT_TEST_GITHUB_PASSWORD']
+    test_github_password
   end
   c.filter_sensitive_data("<<ACCESS_TOKEN>>") do
-      ENV['OCTOKIT_TEST_GITHUB_TOKEN']
+    test_github_token
   end
   c.filter_sensitive_data("<GITHUB_CLIENT_ID>") do
-      ENV['OCTOKIT_TEST_GITHUB_CLIENT_ID']
+    test_github_client_id
   end
   c.filter_sensitive_data("<GITHUB_CLIENT_SECRET>") do
-      ENV['OCTOKIT_TEST_GITHUB_CLIENT_SECRET']
+    test_github_client_secret
+  end
+  c.define_cassette_placeholder("<GITHUB_TEST_REPOSITORY>") do
+    test_github_repository
+  end
+  c.define_cassette_placeholder("<GITHUB_TEST_ORGANIZATION>") do
+    test_github_org
+  end
+  c.define_cassette_placeholder("<GITHUB_TEST_ORG_TEAM_ID>") do
+    "10050505050000"
   end
   c.default_cassette_options = {
     :serialize_with             => :json,
@@ -48,23 +63,31 @@ VCR.configure do |c|
 end
 
 def test_github_login
-  ENV.fetch 'OCTOKIT_TEST_GITHUB_LOGIN'
+  ENV.fetch 'OCTOKIT_TEST_GITHUB_LOGIN', 'api-padawan'
 end
 
 def test_github_password
-  ENV.fetch 'OCTOKIT_TEST_GITHUB_PASSWORD'
+  ENV.fetch 'OCTOKIT_TEST_GITHUB_PASSWORD', 'wow_such_password'
 end
 
 def test_github_token
-  ENV.fetch 'OCTOKIT_TEST_GITHUB_TOKEN'
+  ENV.fetch 'OCTOKIT_TEST_GITHUB_TOKEN', 'x' * 40
 end
 
 def test_github_client_id
-  ENV.fetch 'OCTOKIT_TEST_GITHUB_CLIENT_ID'
+  ENV.fetch 'OCTOKIT_TEST_GITHUB_CLIENT_ID', 'x' * 21
 end
 
 def test_github_client_secret
-  ENV.fetch 'OCTOKIT_TEST_GITHUB_CLIENT_SECRET'
+  ENV.fetch 'OCTOKIT_TEST_GITHUB_CLIENT_SECRET', 'x' * 40
+end
+
+def test_github_repository
+  ENV.fetch 'OCTOKIT_TEST_GITHUB_REPOSITORY', 'api-sandbox'
+end
+
+def test_github_org
+  ENV.fetch 'OCTOKIT_TEST_GITHUB_ORGANIZATION', 'api-playground'
 end
 
 def stub_delete(url)
@@ -128,6 +151,13 @@ def basic_auth_client(login = test_github_login, password = test_github_password
 end
 
 def oauth_client
-  Octokit::Client.new(:access_token => ENV.fetch('OCTOKIT_TEST_GITHUB_TOKEN'))
+  Octokit::Client.new(:access_token => test_github_token)
 end
 
+def use_vcr_placeholder_for(text, replacement)
+  VCR.configure do |c|
+    c.define_cassette_placeholder(replacement) do
+      text
+    end
+  end
+end
